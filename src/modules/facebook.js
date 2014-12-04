@@ -20,7 +20,10 @@ function formatFriends(o){
 }
 
 function format(o){
-	if("data" in o){
+	if (typeof o === 'boolean') {
+		o = {success: o};
+	}
+	if(o && "data" in o){
 		var token = hello.getAuthResponse('facebook').access_token;
 		for(var i=0;i<o.data.length;i++){
 			var d = o.data[i];
@@ -53,10 +56,11 @@ hello.init({
 			p.options.window_height = 400;
 		},
 
-		// REF: http://developers.facebook.com/docs/reference/dialogs/oauth/
+		// https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow/v2.1
 		oauth : {
 			version : 2,
-			auth : 'https://www.facebook.com/dialog/oauth/'
+			auth : 'https://www.facebook.com/dialog/oauth/',
+			grant : 'https://graph.facebook.com/oauth/access_token'
 		},
 
 		// Refresh the access_token
@@ -111,6 +115,8 @@ hello.init({
 			'me/following' : 'me/friends',
 			'me/followers' : 'me/friends',
 			'me/share' : 'me/feed',
+			'me/like' : 'me/likes',
+
 			'me/files' : 'me/albums',
 			'me/albums' : 'me/albums',
 			'me/album' : '@{id}/photos',
@@ -124,12 +130,20 @@ hello.init({
 		// Map POST requests
 		post : {
 			'me/share' : 'me/feed',
+			//	https://developers.facebook.com/docs/graph-api/reference/v2.2/object/likes/
+			//	'me/like' : function(p, callback){
+			//		var id = p.data.id;
+			//		p.data = null;
+			//		callback(id + '/likes');
+			//	},
 			'me/albums' : 'me/albums',
 			'me/album' : '@{id}/photos'
 		},
 
 		// Map DELETE requests
 		del : {
+			// https://developers.facebook.com/docs/graph-api/reference/v2.2/object/likes/
+			// 'me/like' : '@{id}/likes',
 			/*
 			// Can't delete an album
 			// http://stackoverflow.com/questions/8747181/how-to-delete-an-album
@@ -163,7 +177,7 @@ hello.init({
 
 		// Special requirements for handling JSONP fallback
 		jsonp : function(p,qs){
-			var m = p.method.toLowerCase();
+			var m = p.method;
 			if( m !== 'get' && !hello.utils.hasBinary(p.data) ){
 				p.data.method = m;
 				p.method = 'get';

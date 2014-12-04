@@ -23,10 +23,10 @@ function formatUser(o){
 
 function paging(res,headers,req){
 	if(res.data&&res.data.length&&headers&&headers.Link){
-		var next = headers.Link.match(/&page=([0-9]+)/);
+		var next = headers.Link.match(/<(.*?)>;\s*rel=\"next\"/);
 		if(next){
 			res.paging = {
-				next : "?page="+ next[1]
+				next : next[1]
 			};
 		}
 	}
@@ -51,8 +51,25 @@ hello.init({
 			'me' : 'user',
 			'me/friends' : 'user/following?per_page=@{limit|100}',
 			'me/following' : 'user/following?per_page=@{limit|100}',
-			'me/followers' : 'user/followers?per_page=@{limit|100}'
+			'me/followers' : 'user/followers?per_page=@{limit|100}',
+			'me/like' : 'user/starred?per_page=@{limit|100}'
 		},
+		// post : {
+
+		//		// https://developer.github.com/v3/activity/starring/#star-a-repository
+		//		'me/like' : function(p,callback){
+		//			p.method = 'put';
+		//			p.headers['Content-Length'] = 0;
+		//			var id = p.data.id;
+		//			p.data = null;
+		//			callback("user/starred/"+id);
+		//		}
+		//	},
+		//	del : {
+
+		//		// https://developer.github.com/v3/activity/starring/#unstar-a-repository
+		//		'me/like' : "user/starred/@{id}"
+		//	},
 		wrap : {
 			me : function(o,headers){
 
@@ -74,6 +91,19 @@ hello.init({
 				}
 				return o;
 			}
+		},
+		xhr : function(p){
+
+			if( p.method !== 'get' && p.data ){
+				// Serialize payload as JSON
+				p.headers = p.headers || {};
+				p.headers['Content-Type'] = 'application/json';
+				if (typeof(p.data) === 'object'){
+					p.data = JSON.stringify(p.data);
+				}
+			}
+
+			return true;
 		}
 	}
 });

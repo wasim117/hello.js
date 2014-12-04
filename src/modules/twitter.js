@@ -80,17 +80,19 @@ function sign(url){
 }
 */
 
+var base = "https://api.twitter.com/";
+
 hello.init({
 	'twitter' : {
 		// Ensure that you define an oauth_proxy
 		oauth : {
 			version : "1.0a",
-			auth	: "https://twitter.com/oauth/authorize",
-			request : 'https://twitter.com/oauth/request_token',
-			token	: 'https://twitter.com/oauth/access_token'
+			auth	: base + "oauth/authenticate",
+			request : base + "oauth/request_token",
+			token	: base + "oauth/access_token"
 		},
 
-		base	: "https://api.twitter.com/1.1/",
+		base	: base + "1.1/",
 
 		get : {
 			"me"			: 'account/verify_credentials.json',
@@ -99,14 +101,51 @@ hello.init({
 			"me/followers"	: 'followers/list.json?count=@{limit|200}',
 
 			// https://dev.twitter.com/docs/api/1.1/get/statuses/user_timeline
-			"me/share"	: 'statuses/user_timeline.json?count=@{limit|200}'
+			"me/share"	: 'statuses/user_timeline.json?count=@{limit|200}',
+
+			// https://dev.twitter.com/rest/reference/get/favorites/list
+			"me/like" : 'favorites/list.json?count=@{limit|200}'
 		},
 
 		post : {
 			'me/share' : function(p,callback){
+
 				var data = p.data;
 				p.data = null;
-				callback( 'statuses/update.json?include_entities=1&status='+data.message );
+
+				// TWEET MEDIA
+				if( data.file ){
+					p.data = {
+						status : data.message,
+						"media[]" : data.file
+					};
+					callback('statuses/update_with_media.json');
+				}
+				// RETWEET?
+				else if( data.id ){
+					callback('statuses/retweet/'+data.id+'.json');
+				}
+				// TWEET
+				else{
+					callback( 'statuses/update.json?include_entities=1&status='+data.message );
+				}
+			},
+
+			// https://dev.twitter.com/rest/reference/post/favorites/create
+			'me/like' : function(p,callback){
+				var id = p.data.id;
+				p.data = null;
+				callback("favorites/create.json?id="+id);
+			}
+		},
+
+		del : {
+			// https://dev.twitter.com/rest/reference/post/favorites/destroy
+			'me/like' : function(){
+				p.method = 'post';
+				var id = p.data.id;
+				p.data = null;
+				callback("favorites/destroy.json?id="+id);
 			}
 		},
 
@@ -129,6 +168,7 @@ hello.init({
 				return res;
 			},
 			"default" : function(res){
+				res = arrayToDataResponse(res);
 				paging(res);
 				return res;
 			}
@@ -139,5 +179,13 @@ hello.init({
 		}
 	}
 });
+
+
+function arrayToDataResponse(res){
+
+	return hello.utils.isArray( res ) ? { data : res } : res;
+
+}
+
 
 })(hello);

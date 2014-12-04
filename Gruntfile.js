@@ -38,6 +38,8 @@ module.exports = function(grunt) {
 			},
 			all: ['tests/specs/index.html'],
 		},
+		// Bump
+		bumpup: ['package.json', 'bower.json'],
 		// Shunt files around
 		shunt : {
 			// Shunt the documents of our project
@@ -46,8 +48,8 @@ module.exports = function(grunt) {
 			},
 			// Combine the src files, create minified versions
 			build : {
-				'dist/hello.js' : ['src/hello.js', 'src/hello.then.js', 'src/hello.amd.js'],
-				'dist/hello.all.js' : ['src/hello.js', 'src/hello.then.js', 'src/modules/', 'src/hello.amd.js']
+				'dist/hello.js' : ['src/hello.js', 'src/hello.then.js', 'src/hello.amd.js', 'src/hello.commonjs.js'],
+				'dist/hello.all.js' : ['src/hello.js', 'src/hello.then.js', 'src/modules/', 'src/hello.amd.js', 'src/hello.commonjs.js']
 			},
 			minify : {
 				'dist/hello.min.js' : 'dist/hello.js',
@@ -56,6 +58,7 @@ module.exports = function(grunt) {
 		}
 	});
 
+	grunt.loadNpmTasks('grunt-bumpup');
 	grunt.loadNpmTasks('grunt-contrib-jshint');
 	grunt.loadNpmTasks('grunt-contrib-watch');
 	grunt.loadNpmTasks('grunt-mocha-phantomjs');

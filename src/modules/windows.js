@@ -36,7 +36,8 @@ hello.init({
 		// REF: http://msdn.microsoft.com/en-us/library/hh243641.aspx
 		oauth : {
 			version : 2,
-			auth : 'https://login.live.com/oauth20_authorize.srf'
+			auth : 'https://login.live.com/oauth20_authorize.srf',
+			grant : 'https://login.live.com/oauth20_token.srf'
 		},
 
 		// Refresh the access_token once expired
@@ -153,9 +154,9 @@ hello.init({
 			return true;
 		},
 		jsonp : function(p){
-			if( p.method.toLowerCase() !== 'get' && !hello.utils.hasBinary(p.data) ){
+			if( p.method !== 'get' && !hello.utils.hasBinary(p.data) ){
 				//p.data = {data: JSON.stringify(p.data), method: p.method.toLowerCase()};
-				p.data.method = p.method.toLowerCase();
+				p.data.method = p.method;
 				p.method = 'get';
 			}
 		}

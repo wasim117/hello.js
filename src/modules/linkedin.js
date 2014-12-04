@@ -21,6 +21,7 @@ function formatUser(o){
 	o.last_name = o.lastName;
 	o.name = o.formattedName || (o.first_name + ' ' + o.last_name);
 	o.thumbnail = o.pictureUrl;
+	o.email = o.emailAddress;
 }
 
 
@@ -45,6 +46,13 @@ function paging(res){
 	}
 }
 
+
+function empty(o,headers){
+	if(JSON.stringify(o) === '{}'&&headers.statusCode === 200){
+		o.success = true;
+	}
+}
+
 hello.init({
 	'linkedin' : {
 
@@ -66,16 +74,10 @@ hello.init({
 		},
 		scope_delim : ' ',
 
-		querystring : function(qs){
-			// Linkedin signs requests with the parameter 'oauth2_access_token'... yeah anotherone who thinks they should be different!
-			qs.oauth2_access_token = qs.access_token;
-			delete qs.access_token;
-		},
-
 		base	: "https://api.linkedin.com/v1/",
 
 		get : {
-			"me"			: 'people/~:(picture-url,first-name,last-name,id,formatted-name)',
+			"me"			: 'people/~:(picture-url,first-name,last-name,id,formatted-name,email-address)',
 			"me/friends"	: 'people/~/connections?count=@{limit|500}',
 			"me/followers"	: 'people/~/connections?count=@{limit|500}',
 			"me/following"	: 'people/~/connections?count=@{limit|500}',
@@ -85,8 +87,45 @@ hello.init({
 		},
 
 		post : {
-			//"me/share"		: 'people/~/current-status'
+
+			// https://developer.linkedin.com/documents/api-requests-json
+			"me/share"		: function(p, callback){
+				var data =  {
+					"visibility": {
+						"code": "anyone"
+					}
+				};
+
+				if(p.data.id){
+
+					data["attribution"] = {
+						"share": {
+							"id": p.data.id
+						}
+					};
+
+				}
+				else{
+					data["comment"] = p.data.message;
+					data["content"] = {
+						"submitted-url": p.data.link,
+						"submitted-image-url": p.data.picture
+					};
+				}
+
+				p.data = JSON.stringify(data);
+
+				callback('people/~/shares?format=json');
+			},
+
+			"me/like" : like
 		},
+
+
+		del :{
+			"me/like" : like
+		},
+
 
 		wrap : {
 			me : function(o){
@@ -111,19 +150,48 @@ hello.init({
 				}
 				return o;
 			},
-			"default" : function(o){
+			"default" : function(o,headers){
 				formatError(o);
+				empty(o,headers);
 				paging(o);
 			}
 		},
 		jsonp : function(p,qs){
-			qs.format = 'jsonp';
+			formatQuery(qs);
 			if(p.method==='get'){
-				qs['error-callback'] = '?';
+				qs.format = 'jsonp';
+				qs['error-callback'] = p.callbackID;
 			}
 		},
-		xhr : false
+		xhr : function(p,qs){
+			if(p.method !== 'get'){
+				formatQuery(qs);
+				p.headers['Content-Type'] = 'application/json';
+				// x-li-format ensures error responses are not returned in XML
+				p.headers['x-li-format'] = 'json';
+				p.proxy = true;
+				return true;
+			}
+			return false;
+		}
 	}
 });
+
+
+function formatQuery(qs){
+	// Linkedin signs requests with the parameter 'oauth2_access_token'... yeah anotherone who thinks they should be different!
+	if(qs.access_token){
+		qs.oauth2_access_token = qs.access_token;
+		delete qs.access_token;
+	}
+}
+
+function like(p, callback){
+	p.headers["x-li-format"] = "json";
+	var id = p.data.id;
+	p.data = (p.method !== 'delete').toString();
+	p.method = 'put';
+	callback('people/~/network/updates/key=' + id + '/is-liked');
+}
 
 })(hello);

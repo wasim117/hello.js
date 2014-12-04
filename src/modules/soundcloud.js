@@ -1,6 +1,6 @@
 //
 // SoundCloud
-//
+// https://developers.soundcloud.com/docs/api/reference
 (function(hello){
 
 
@@ -28,16 +28,10 @@ hello.init({
 
 		oauth : {
 			version : 2,
-			auth : 'https://soundcloud.com/connect'
+			auth : 'https://soundcloud.com/connect',
+			grant : 'https://soundcloud.com/oauth2/token'
 		},
 
-		// Alter the querystring
-		querystring : function(qs){
-			var token = qs.access_token;
-			delete qs.access_token;
-			qs.oauth_token = token;
-			qs['_status_code_map[302]'] = 200;
-		},
 		// Request path translated
 		base : 'https://api.soundcloud.com/',
 		get : {
@@ -73,8 +67,22 @@ hello.init({
 				paging(o);
 				return o;
 			}
-		}
+		},
+
+		xhr : formatRequest,
+		jsonp : formatRequest
 	}
 });
+
+
+function formatRequest(p,qs){
+	// Alter the querystring
+	var token = qs.access_token;
+	delete qs.access_token;
+	qs.oauth_token = token;
+	qs['_status_code_map[302]'] = 200;
+	return true;
+}
+
 
 })(hello);

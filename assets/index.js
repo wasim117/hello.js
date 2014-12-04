@@ -44,6 +44,26 @@ var tests = [
 			network: reg.string
 		}
 	},
+	// {
+	// 	title : "Login via Authorization code grant flow",
+	// 	api : "login",
+	// 	method : 'login',
+	// 	data : {
+	// 		response_type : 'code',
+	// 		display : ["popup", "none", "page"],
+	// 		scope : ""
+	// 	},
+	// 	filter : function(test){
+	// 		return hello.services[test.network].oauth.grant && hello.services[test.network].oauth.version === 2;
+	// 	},
+	// 	expected : {
+	// 		authResponse : {
+	// 			access_token : reg.string,
+	// 			expires : /\d/
+	// 		},
+	// 		network: reg.string
+	// 	}
+	// },
 	{
 		title : "Logout from app",
 		api : "logout",
@@ -76,12 +96,12 @@ var tests = [
 		}
 	},
 	{
-		title : "OAuth2: Authorization Code, services which require oauth_proxy",
+		title : "OAuth2: Authorization code, service requires oauth_proxy",
 		api : "oauth",
-		method : "OAuth2: Authorization code",
+		method : "OAuth2: Explicit Grant",
 		filter : function(test){
 			var oauth = hello.services[test.network].oauth;
-			return oauth.version === 2 && oauth.response_type === 'code';
+			return oauth.version === 2 && oauth.grant;
 		}
 	},
 	{
@@ -114,6 +134,7 @@ var tests = [
 		api : "api",
 		method : 'get',
 		path : 'me',
+		scope : ['email'],
 		expected : {
 			name : reg.name,
 			id : reg.id,
@@ -210,6 +231,67 @@ var tests = [
 		expected : {}
 	},
 	{
+		title : "Post a status and upload a media file",
+		api : "api",
+		method : 'post',
+		path : 'me/share',
+		scope : ["publish"],
+		filter: function(p){
+			return p.enabled && p.network === 'twitter';
+		},
+		data : {
+			message : "Uploading image",
+			file : INPUT_FILE
+		},
+		expected : {}
+	},
+	{
+		title : "Reshare an existing message",
+		api : "api",
+		method : 'post',
+		path : 'me/share',
+		scope : ["publish"],
+		filter: function(p){
+			return p.enabled && 'twitter,linkedin'.indexOf(p.network) !== -1;
+		},
+		data : {
+			id : 0
+		},
+		expected : {}
+	},
+	{
+		title : "Get a list of items i've liked, favourited or starred",
+		api : "api",
+		method : 'get',
+		path : 'me/like',
+		data : query,
+		expected : {
+			data : []
+		}
+	},
+	{
+		title : "Like, favourite or star something",
+		api : "api",
+		method : 'post',
+		path : 'me/like',
+		scope : ["publish"],
+		data : {
+			id : 0
+		},
+		expected : {}
+	},
+	{
+		title : "Unlike, unfavourite or unstar something",
+		api : "api",
+		method : 'delete',
+		path : 'me/like',
+		scope : ["publish"],
+		data : {
+			id : 0
+		},
+		expected : {}
+	},
+	{
 		title : "List my albums",
 		api : "api",
 		method : 'get',
@@ -235,14 +317,14 @@ var tests = [
 			id : "[ALBUM_ID]"
 		},
 		setup : function(test, callback){
-			hello(test.network).api("me/albums").success(function(r){
+			hello(test.network).api("me/albums").on('success', function(r){
 				if(r.data.length){
 					test.data.id = test.data.id.replace("[ALBUM_ID]", r.data[0].id );
 					callback();
 					return;
 				}
 				callback("Failed to setup: the user has no albums");
-			}).error(function(){
+			}).on('error',function(){
 				callback("Failed to setup: could not open me/albums");
 			});
 		},
@@ -279,7 +361,7 @@ var tests = [
 			id : "[PHOTO_ID]"
 		},
 		setup : function(test, callback){
-			hello(test.network).api("me/albums").success( function(r){
+			hello(test.network).api("me/albums").on('success', function(r){
 				if("data" in r && r.data.length > 0){
 
 					// Pick one randomly
@@ -299,7 +381,7 @@ var tests = [
 				else{
 					callback("Failed to setup: The user has no albums yet");
 				}
-			}).error(function(){
+			}).on('error',function(){
 				callback("Failed to setup: Error connecting to me/albums");
 			});
 		},
@@ -566,7 +648,7 @@ var tests = [
 // Get the ID of the test album
 //
 function before_photo_post(test, callback){
-	hello(test.network).api("me/albums").success(function(r){
+	hello(test.network).api("me/albums").on('success',function(r){
 		for(var i=0;i<r.data.length;i++){
 			if(r.data[i].name === "TestAlbum"){
 				var id = r.data[i].id;
@@ -575,7 +657,7 @@ function before_photo_post(test, callback){
 			}
 		}
 		callback("Failed to setup: Could not find the album 'TestAlbum'");
-	}).error(function(){
+	}).on('error',function(){
 		callback("Failed to setup: could not access me/albums");
 	});
 }
@@ -587,14 +669,14 @@ function get_test_photo(test, callback){
 			callback(s);
 			return;
 		}
-		hello(test.network).api( "me/album", { id : test.data.id } ).success(function(r){
+		hello(test.network).api( "me/album", { id : test.data.id } ).on('success',function(r){
 			for(var i=0;i<r.data.length;i++){
 				var file = r.data[i];
 				test.data.id = file.id;
 				return callback();
 			}
 			callback("Failed to setup: Create file 'TestFile.png' (there's a test above which does this)");
-		}).error(function(){
+		}).on('error',function(){
 			callback("Failed to setup, could not access me/files");
 		});
 	});
@@ -608,7 +690,7 @@ function get_test_folder(test, callback){
 	}
 
 	// If there is no ID, post to root
-	hello(test.network).api("me/folders").success(function(r){
+	hello(test.network).api("me/folders").on('success',function(r){
 		for(var i=0;i<r.data.length;i++){
 			var folder = r.data[i];
 			if(folder.name === "TestFolder"){
@@ -622,7 +704,7 @@ function get_test_folder(test, callback){
 			}
 		}
 		callback("Failed to setup: First create a folder called 'TestFolder' (there's a test above which does this)");
-	}).error(function(){
+	}).on('error',function(){
 		callback("Failed to setup, could not access me/folders, ensure your signed in with the 'files' scope");
 	});
 }
@@ -634,14 +716,14 @@ function get_test_file(test, callback){
 			callback(s);
 			return;
 		}
-		hello(test.network).api( "me/files", { parent : test.data.id } ).success(function(r){
+		hello(test.network).api( "me/files", { parent : test.data.id } ).on('success',function(r){
 			for(var i=0;i<r.data.length;i++){
 				var file = r.data[i];
 				test.data.id = file.id;
 				return callback();
 			}
 			callback("Failed to setup: Create file 'TestFile.png' (there's a test above which does this)");
-		}).error(function(){
+		}).on('error',function(){
 			callback("Failed to setup, could not access me/files");
 		});
 	});
@@ -705,10 +787,7 @@ function Test(test,network,parent){
 
 	this.expected = test.expected;
 	this.validate = test.validate || function(r){
-		if(this.expected){
-			return testExpected(this.expected,r);
-		}
-		return r && !("error" in r);
+		return r && !("error" in r) && (!this.expected || testExpected(this.expected,r));
 	};
 
 	this.next = ko.observable(null);
@@ -771,7 +850,11 @@ function Test(test,network,parent){
 				var b = test.validate(r);
 
 				// Next enabled
-				test.next(typeof(next)==='function'?next:null);
+				test.next(r.paging && r.paging.next?function(){
+					// Call hello.api
+					// Save the request information
+					test.request( hello( network ).api( r.paging.next, test.method, test.data, cb) );
+				}:null);
 
 				// passed?
 				test.passed(b);
@@ -787,19 +870,19 @@ function Test(test,network,parent){
 			};
 			
 			if(test.method === 'login'){
-				test.request( hello.login(network,test.data,cb) );
+				test.request( hello(network).login(test.data,cb) );
 			}
 			else if(test.method === 'logout'){
-				test.request( hello.logout(network,test.data,cb) );
+				test.request( hello(network).logout(network,test.data,cb) );
 			}
 			else if(test.method === 'getAuthResponse'){
 				test.request({});
-				cb(hello.getAuthResponse(network));
+				cb(hello(network).getAuthResponse(network));
 			}
 			else{
 				// Call hello.api
 				// Save the request information
-				test.request( hello.api((network?network+":":"")+test.path, test.method, test.data, cb) );
+				test.request( hello(network).api( test.path, test.method, test.data, cb) );
 			}
 		};
 

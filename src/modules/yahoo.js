@@ -13,9 +13,9 @@ function formatError(o){
 	}
 }
 
-function formatFriends(o){
+function formatFriends(o,headers,request){
 	formatError(o);
-	paging(o);
+	paging(o, headers, request);
 	var contact,field;
 	if(o.query&&o.query.results&&o.query.results.contact){
 		o.data = o.query.results.contact;
@@ -45,13 +45,13 @@ function formatFriends(o){
 	return o;
 }
 
-function paging(res){
+function paging(res, headers, request){
 
 	// PAGING
 	// http://developer.yahoo.com/yql/guide/paging.html#local_limits
-	if(res.query && res.query.count){
+	if(res.query && res.query.count && request.options ){
 		res['paging'] = {
-			next : '?start='+res.query.count
+			next : '?start='+ ( res.query.count + ( +request.options.start || 1 ) )
 		};
 	}
 }
@@ -106,9 +106,16 @@ hello.init({
 				if(o.query&&o.query.results&&o.query.results.profile){
 					o = o.query.results.profile;
 					o.id = o.guid;
-					o.name = o.givenName + ' ' +o.familyName;
 					o.last_name = o.familyName;
-					o.first_name = o.givenName;
+					o.first_name = o.givenName || o.nickname;
+					var a = [];
+					if(o.first_name){
+						a.push(o.first_name);
+					}
+					if(o.last_name){
+						a.push(o.last_name);
+					}
+					o.name = a.join(' ');
 					o.email = o.emails?o.emails.handle:null;
 					o.thumbnail = o.image?o.image.imageUrl:null;
 				}
@@ -122,8 +129,7 @@ hello.init({
 				paging(res);
 				return res;
 			}
-		},
-		xhr : false
+		}
 	}
 });
 

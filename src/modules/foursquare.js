@@ -4,7 +4,7 @@
 (function(hello){
 
 function formatError(o){
-	if(o.meta&&o.meta.code===400){
+	if(o.meta&&(o.meta.code===400||o.meta.code===401)){
 		o.error = {
 			code : "access_denied",
 			message : o.meta.errorDetail
@@ -37,20 +37,14 @@ hello.init({
 		name : 'FourSquare',
 
 		oauth : {
+			// https://developer.foursquare.com/overview/auth
 			version : 2,
-			auth : 'https://foursquare.com/oauth2/authenticate'
+			auth : 'https://foursquare.com/oauth2/authenticate',
+			grant : 'https://foursquare.com/oauth2/access_token'
 		},
 
 		// Refresh the access_token once expired
 		refresh : true,
-
-		// Alter the querystring
-		querystring : function(qs){
-			var token = qs.access_token;
-			delete qs.access_token;
-			qs.oauth_token = token;
-			qs.v = 20121125;
-		},
 
 		base : 'https://api.foursquare.com/v2/',
 
@@ -82,8 +76,21 @@ hello.init({
 				}
 				return o;
 			}
-		}
+		},
+
+		xhr : formatRequest,
+		jsonp : formatRequest
 	}
 });
+
+
+function formatRequest(p,qs){
+	var token = qs.access_token;
+	delete qs.access_token;
+	qs.oauth_token = token;
+	qs.v = 20121125;
+	return true;
+}
+
 
 })(hello);
